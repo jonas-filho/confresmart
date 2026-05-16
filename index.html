@@ -433,96 +433,6 @@ window.onerror = (msg, src, line, col, err) => {
   return false;
 };
 
-const DEMO = {
-  seq:'1859575',data:'12/05/2026',hora:'16:22:20',
-  cliente:'MARIA MADALENA AGUIAR ME',clienteCod:'10673',
-  vendedor:'L.GUILHERME',vendedorCod:'5503',
-  cidade:'Pesqueira',uf:'PE',total:1473.83,
-  itens:[
-    {cod:'7898586294301',desc:'BICO DE PATO TRM GRAMPO BASE 7,7CM 100UNDS PRATA',und:'PC',qtd:1,punit:21.95,total:21.95},
-    {cod:'453234',desc:'AG CURVA CA Nº2,5 NIQ 02UNDS 5132',und:'UN',qtd:1,punit:2.95,total:2.95},
-    {cod:'453233',desc:'AG CURVA CA Nº3,0 NIQ 02UNDS 5132',und:'UN',qtd:1,punit:4.25,total:4.25},
-    {cod:'453232',desc:'AG CURVA CA Nº3,5 NIQ 02UNDS 5132',und:'UN',qtd:1,punit:4.50,total:4.50},
-    {cod:'7891020009011',desc:'AG DARNING COATS 03 C/20UNDS CA 10',und:'CA',qtd:10,punit:4.95,total:49.50},
-    {cod:'37431889218',desc:'AG SINGER DOMESTICA MALHA 10UNDS 2045 70/10',und:'CA',qtd:2,punit:9.05,total:18.10},
-    {cod:'840163307130',desc:'AG SINGER OVERLOCK 10UNDS 6120-06 75/11',und:'CA',qtd:2,punit:14.15,total:28.30},
-    {cod:'840163307147',desc:'AG SINGER OVERLOCK 10UNDS 6120-06 80/12',und:'CA',qtd:2,punit:14.15,total:28.30},
-    {cod:'7891113243070',desc:'AG TRICO PLAST CIRCULO 4,5MM 35CM 045 BCO',und:'PA',qtd:2,punit:10.95,total:21.90},
-    {cod:'7899537023827',desc:'ALF. ARTP AF001-029 Nº29 50G 200',und:'CX',qtd:5,punit:6.95,total:34.75},
-    {cod:'7908253243331',desc:'ALF. SEGURANCA NYBC Nº3 (03) 100UNDS OURO',und:'CA',qtd:2,punit:7.95,total:15.90},
-    {cod:'7908253243393',desc:'ALF. SEGURANCA NYBC Nº4 (04) 50UNDS OURO',und:'CA',qtd:2,punit:6.25,total:12.50},
-    {cod:'7908253243454',desc:'ALF. SEGURANCA NYBC Nº5 (05) 50UNDS OURO',und:'CA',qtd:2,punit:10.75,total:21.50},
-    {cod:'20005864',desc:'APLIQUE FELTRO 4,3CM 100UNDS BANDEIROLA ESCURA',und:'PC',qtd:2,punit:9.95,total:19.90},
-    {cod:'20004771',desc:'APLIQUE FELTRO 4,3CM 25UNDS MATUTINHA ROSA',und:'PC',qtd:1,punit:31.95,total:31.95},
-    {cod:'20005865',desc:'APLIQUE FELTRO 4,3CM 25UNDS MATUTINHO',und:'PC',qtd:1,punit:25.95,total:25.95},
-    {cod:'20004769',desc:'APLIQUE FELTRO 5,0CM 25UNDS BALAO',und:'PC',qtd:1,punit:25.95,total:25.95},
-    {cod:'20004776',desc:'APLIQUE FELTRO 7,0CM 05UNDS PACHT SORTIDO',und:'PC',qtd:2,punit:3.95,total:7.90},
-    {cod:'7899482824326',desc:'ARAME GALVANIZADO Nº24 C/10MTS',und:'PC',qtd:3,punit:1.95,total:5.85},
-    {cod:'7891113374156',desc:'BARB. CIRCULO APOLO 4/6 C/610MTS 8990 PTO',und:'UN',qtd:2,punit:17.50,total:35.00},
-    {cod:'20004419',desc:'BOJO LA BELLE 10 CASQUINHA 04 PARES G BCO',und:'PC',qtd:1,punit:9.95,total:9.95},
-    {cod:'20004422',desc:'BOJO LA BELLE 10 CASQUINHA 04 PARES G CHOCOLATE',und:'PC',qtd:1,punit:9.95,total:9.95},
-    {cod:'20004532',desc:'BOJO LA BELLE 10 CASQUINHA 04 PARES G PTO',und:'PC',qtd:1,punit:9.95,total:9.95},
-    {cod:'20004420',desc:'BOJO LA BELLE 10 CASQUINHA 04 PARES M BCO',und:'PC',qtd:1,punit:9.95,total:9.95},
-    {cod:'20004424',desc:'BOJO LA BELLE 10 CASQUINHA 04 PARES M CHOCOLATE',und:'PC',qtd:1,punit:9.95,total:9.95},
-    {cod:'20004317',desc:'BOJO LA BELLE 10 CASQUINHA 04 PARES M PTO',und:'PC',qtd:1,punit:9.95,total:9.95},
-    {cod:'7898472250107',desc:'COLA DE SILICONE TKB 30ML/25G',und:'UN',qtd:6,punit:3.50,total:21.00},
-    {cod:'7898586290662',desc:'CONT PLAST (MEIA PEROLA) TRM 08MM 500G BCO',und:'PC',qtd:1,punit:33.95,total:33.95},
-    {cod:'7897568500362',desc:'CORANTES TUPY 6TBS 36 PTO',und:'PC',qtd:5,punit:20.50,total:102.50},
-    {cod:'7908893340339',desc:'CURSOR-NYL-100-05 NVA 100UNDS NYQ',und:'PC',qtd:1,punit:16.95,total:16.95},
-    {cod:'7908893340346',desc:'CURSOR-NYL-100-05 NVA 100UNDS ONIX',und:'PC',qtd:1,punit:16.95,total:16.95},
-    {cod:'7893198215881',desc:'F. CETIM CIND 903M C/LUREX 22MM 10MTS AM/OURO',und:'PC',qtd:1,punit:10.95,total:10.95},
-    {cod:'7893198300228',desc:'F. CETIM CIND 903M C/LUREX 22MM 10MTS BANDEIRA',und:'PC',qtd:1,punit:10.95,total:10.95},
-    {cod:'7891521365555',desc:'F. CETIM PRG CF001 7MM 100MTS BCO',und:'RL',qtd:2,punit:11.75,total:23.50},
-    {cod:'7891521371228',desc:'F. CETIM PRG CF001 7MM 100MTS ROYAL',und:'RL',qtd:2,punit:11.75,total:23.50},
-    {cod:'7891521368082',desc:'F. CETIM PRG CF001 7MM 100MTS BANDEIRA',und:'RL',qtd:2,punit:11.75,total:23.50},
-    {cod:'7891521358410',desc:'F. CETIM PRG CF001 7MM 10MTS BCO',und:'PC',qtd:10,punit:1.65,total:16.50},
-    {cod:'7891521358168',desc:'F. CETIM PRG CF001 7MM 10MTS VERM',und:'PC',qtd:5,punit:1.65,total:8.25},
-    {cod:'7891521368044',desc:'F. CETIM PRG CF001 7MM 10MTS BANDEIRA',und:'PC',qtd:5,punit:1.65,total:8.25},
-    {cod:'7891521451586',desc:'F. CETIM PRG CF001 7MM 10MTS AZUL PAVAO',und:'PC',qtd:5,punit:1.65,total:8.25},
-    {cod:'7891521449880',desc:'F. CETIM PRG CF001 7MM 10MTS AMARELO GEMA',und:'PC',qtd:10,punit:1.65,total:16.50},
-    {cod:'7891521359127',desc:'F. CETIM PRG CF002 10MM 10MTS BCO',und:'PC',qtd:5,punit:2.30,total:11.50},
-    {cod:'7891521368105',desc:'F. CETIM PRG CF002 10MM 10MTS BANDEIRA',und:'PC',qtd:5,punit:2.30,total:11.50},
-    {cod:'7891521451623',desc:'F. CETIM PRG CF002 10MM 10MTS AZUL PAVAO',und:'PC',qtd:5,punit:2.30,total:11.50},
-    {cod:'7891521452422',desc:'F. CETIM PRG CF002 10MM 10MTS AMARELO GEMA',und:'PC',qtd:5,punit:2.30,total:11.50},
-    {cod:'7891521358182',desc:'F. CETIM PRG CF003 15MM 10MTS VERM',und:'PC',qtd:3,punit:3.05,total:9.15},
-    {cod:'7891521368143',desc:'F. CETIM PRG CF003 15MM 10MTS BANDEIRA',und:'PC',qtd:5,punit:3.05,total:15.25},
-    {cod:'7891521706891',desc:'F. CETIM PRG CF003 15MM 10MTS PINK',und:'PC',qtd:3,punit:3.05,total:9.15},
-    {cod:'7891521708789',desc:'F. CETIM PRG CF003 15MM 10MTS LAVANDA',und:'PC',qtd:3,punit:3.05,total:9.15},
-    {cod:'7891521882540',desc:'F. CETIM PRG CF003 15MM 10MTS MARSALA',und:'PC',qtd:1,punit:3.05,total:3.05},
-    {cod:'7909857065718',desc:'F. CETIM PRG CF003 15MM 10MTS CACAU',und:'PC',qtd:2,punit:3.05,total:6.10},
-    {cod:'7891521547234',desc:'F. CETIM PRG CF003 15MM 50MTS AMARELO GEMA',und:'RL',qtd:1,punit:14.50,total:14.50},
-    {cod:'7891521962709',desc:'F. CETIM PRG CF003 15MM 50MTS AZUL MEDIO',und:'RL',qtd:1,punit:14.50,total:14.50},
-    {cod:'7891521846832',desc:'F. CETIM PRG CF007 30MM 50MTS BCO',und:'RL',qtd:1,punit:27.50,total:27.50},
-    {cod:'7891521609376',desc:'F. CETIM PRG CF009 38MM 50MTS AZUL PAVAO',und:'RL',qtd:1,punit:34.50,total:34.50},
-    {cod:'7891521609390',desc:'F. CETIM PRG CF009 38MM 50MTS AMA/GEMA',und:'RL',qtd:1,punit:34.50,total:34.50},
-    {cod:'7909857099942',desc:'F. CETIM PRG ECF005TR 22MM 10MTS BANDEIRIN',und:'PC',qtd:1,punit:15.50,total:15.50},
-    {cod:'7891521373222',desc:'F. GORG PRG GP001 07MM 10MTS BCO',und:'PC',qtd:2,punit:3.80,total:7.60},
-    {cod:'7891521387908',desc:'F. GORG PRG GP002 11MM 10MTS BCO',und:'PC',qtd:2,punit:4.55,total:9.10},
-    {cod:'7909857071931',desc:'F. VOAL C/CETIM PRG VCE005 22MM 10MTS BCO',und:'PC',qtd:2,punit:10.25,total:20.50},
-    {cod:'7899767926455',desc:'F. XADREZ MET MLC 2,5CMX10MTS BCO/AMA',und:'PC',qtd:1,punit:11.95,total:11.95},
-    {cod:'7899767926448',desc:'F. XADREZ MET MLC 2,5CMX10MTS BCO/BAND',und:'PC',qtd:1,punit:11.95,total:11.95},
-    {cod:'7899767926387',desc:'F. XADREZ MET MLC 2,5CMX10MTS BCO/VERM',und:'PC',qtd:1,punit:11.95,total:11.95},
-    {cod:'7899767926417',desc:'F. XADREZ MET MLC 2,5CMX10MTS BCO/PINK',und:'PC',qtd:1,punit:11.95,total:11.95},
-    {cod:'20006016',desc:'FECHO BOLINHA NVA 9.5CM VRJ (20UNDS) PRATA',und:'PC',qtd:2,punit:2.25,total:4.50},
-    {cod:'7908433917311',desc:'GALAO-91-10 NYBC 20MTS BCO',und:'PC',qtd:1,punit:17.50,total:17.50},
-    {cod:'7891153171104',desc:'GOMA LACA ACRILEX 100ML INCOLOR',und:'UN',qtd:2,punit:12.75,total:25.50},
-    {cod:'7891113402460',desc:'L. ANNE BRILHO 500MTS 8001 BCO',und:'NV',qtd:1,punit:24.50,total:24.50},
-    {cod:'7891113567961',desc:'L. LIZA GROSSA 500MTS 8990 PTO',und:'CN',qtd:5,punit:10.50,total:52.50},
-    {cod:'7891113355414',desc:'LA MOLLET 40G 0541 ENSEADA',und:'NV',qtd:5,punit:4.25,total:21.25},
-    {cod:'505518',desc:'PASSADOR DE ELASTICO YL-574 VRJ C/GARRA',und:'PC',qtd:1,punit:3.95,total:3.95},
-    {cod:'68600',desc:'PINCA-FC RETA NYBC TWE-8 S/PESCADOR',und:'UN',qtd:3,punit:2.25,total:6.75},
-    {cod:'37431888358',desc:'TESOURA SINGER 8"/20,3CM TECIDO',und:'UN',qtd:1,punit:61.95,total:61.95},
-    {cod:'7908691259055',desc:'TESOURA-PASSARO-3.5 BORDAR NYBC OURO/PRATA',und:'UN',qtd:2,punit:12.50,total:25.00},
-    {cod:'7891153041254',desc:'TINTA TECIDO FOSCA 37ML 504 AM/LIMAO',und:'UN',qtd:3,punit:4.05,total:12.15},
-    {cod:'7891153041261',desc:'TINTA TECIDO FOSCA 37ML 505 AM/OURO',und:'UN',qtd:3,punit:4.05,total:12.15},
-    {cod:'7897930861619',desc:'VIES DEST 9200 FINO 24MM 20MTS BCO/AMA',und:'RL',qtd:2,punit:6.20,total:12.40},
-    {cod:'7897930861640',desc:'VIES DEST 9200 FINO 24MM 20MTS BCO/VERD',und:'RL',qtd:2,punit:6.20,total:12.40},
-    {cod:'90772',desc:'ZP METAL DEST 60CM NYBC PTO PIN C/STRA',und:'UN',qtd:1,punit:7.50,total:7.50},
-    {cod:'20001398',desc:'ZP METAL DEST 70CM NYBC PTO PIN C/STRA',und:'UN',qtd:2,punit:8.50,total:17.00},
-    {cod:'20002040',desc:'ZP VRJ INV 40CM UNIDADE',und:'UN',qtd:12,punit:0.80,total:9.60},
-    {cod:'20001020',desc:'ZP VRJ NY 20CM UNIDADE',und:'UN',qtd:12,punit:0.44,total:5.28},
-  ]
-};
 
 // ── ESTADO ──────────────────────────────────────────
 let pedidos=[],abaAtiva=null,nextId=1;
@@ -628,7 +538,6 @@ function renderMainUpload(){
     <div id="upload-zone"><div class="uz-ic">📋</div><div class="uz-t">Carregar Pedido DAV</div><div class="uz-s">Toque aqui ou arraste o PDF do pedido<br><span style="font-size:11px;opacity:.6">DAV — Documento Auxiliar de Venda</span></div><input type="file" id="file-input" accept=".pdf"/></div>
     <div style="text-align:center;margin:10px 0;color:var(--muted);font-size:12px">ou</div>
     <div style="text-align:center;display:flex;flex-direction:column;gap:10px;align-items:center">
-      <button class="btn btn-g" id="btn-demo" style="width:100%;max-width:340px">📄 Carregar Demo (Ticket #1859575)</button>
       ${abaAtiva?`<button class="btn btn-g" style="width:100%;max-width:340px;color:var(--muted);font-size:12px" onclick="cancelarUpload()">← Cancelar</button>`:''}
     </div>`;
   attachUpload()
@@ -779,9 +688,8 @@ function renderRel(){
 
 // ── UPLOAD ──────────────────────────────────────────
 function attachUpload(){
-  const z=document.getElementById('upload-zone'),fi=document.getElementById('file-input'),dm=document.getElementById('btn-demo');
+  const z=document.getElementById('upload-zone'),fi=document.getElementById('file-input');
   if(z){z.addEventListener('click',()=>fi.click());z.addEventListener('dragover',e=>{e.preventDefault();z.classList.add('drag-over')});z.addEventListener('dragleave',()=>z.classList.remove('drag-over'));z.addEventListener('drop',e=>{e.preventDefault();z.classList.remove('drag-over');if(e.dataTransfer.files[0])processFile(e.dataTransfer.files[0])});fi.addEventListener('change',()=>{if(fi.files[0])processFile(fi.files[0])})}
-  if(dm)dm.addEventListener('click',()=>criarPedido(DEMO))
 }
 
 async function processFile(f){
