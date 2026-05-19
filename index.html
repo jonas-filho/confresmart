@@ -9,8 +9,8 @@
 <meta name="apple-mobile-web-app-title" content="ConfereSmart">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="manifest" href="manifest.json">
-<link rel="apple-touch-icon" href="icone-192.png">
-<link rel="icon" type="image/png" sizes="192x192" href="icone-192.png">
+<link rel="apple-touch-icon" href="favicon.png">
+<link rel="icon" type="image/png" sizes="192x192" href="favico.png">
 <title>ConfereSmart — Conferência de Pedidos</title>
 
 <style>
@@ -274,6 +274,251 @@ header{position:fixed;top:0;left:0;right:0;height:var(--hh);background:var(--sur
   #main-area{margin-left:320px}
 }
 </style>
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js">
+// ── OCR POR FOTO ───────────────────────────────────
+window.abrirImagemPedido = function(){
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = 'image/*';
+  input.capture = 'environment';
+
+  input.onchange = async (e)=>{
+    const file = e.target.files[0];
+    if(!file) return;
+
+    try{
+      showToast('Processando imagem...');
+
+      if(typeof Tesseract === 'undefined'){
+        showToast('OCR não carregado','error');
+        return;
+      }
+
+      const result = await Tesseract.recognize(
+        file,
+        'por',
+        {
+          logger: m => {
+            if(m.status === 'recognizing text'){
+              const pct = Math.round(m.progress * 100);
+              showToast('OCR '+pct+'%');
+            }
+          }
+        }
+      );
+
+      const texto = result.data.text;
+
+      const pedido = parsearTextoOCR(texto);
+
+      if(!pedido || !pedido.itens.length){
+        document.getElementById('main-area').innerHTML = `
+          <div style="padding:20px">
+            <div style="font-size:18px;font-weight:800;color:var(--danger);margin-bottom:10px">
+              Não foi possível identificar os itens
+            </div>
+            <pre style="white-space:pre-wrap;background:var(--surface2);padding:12px;border-radius:10px;max-height:60vh;overflow:auto">${texto}</pre>
+          </div>
+        `;
+        return;
+      }
+
+      criarPedido(pedido);
+      feedbackOK(); showToast('Pedido criado via OCR!');
+
+    }catch(err){
+      console.error(err);
+      showToast('Erro no OCR','error');
+    }
+  };
+
+  input.click();
+}
+
+function parsearTextoOCR(texto){
+  const linhas = texto.split('\\n').map(l => l.trim()).filter(Boolean);
+
+  const itens = [];
+
+  for(const linha of linhas){
+
+    // tenta identificar padrões comuns
+    const match = linha.match(/(\\d{3,})\\s+(.*?)\\s+(\\d+)\\s*(UN|CX|FD|PC|KG)?$/i);
+
+    if(match){
+      itens.push({
+        cod: match[1],
+        desc: match[2],
+        qtd: Number(match[3]),
+        und: match[4] || 'UN'
+      });
+    }
+  }
+
+  return {
+    seq: 'OCR-' + Date.now(),
+    cliente: 'Pedido por imagem',
+    vendedor: 'OCR',
+    cidade: '',
+    uf: '',
+    data: new Date().toLocaleDateString('pt-BR'),
+    total: 0,
+    itens
+  };
+}
+
+
+// ── MELHORIAS PROFISSIONAIS ─────────────────────────
+
+// Auto save
+function salvarEstadoAutomatico(){
+  try{
+    localStorage.setItem('confereSmartPedidos', JSON.stringify(pedidos));
+  }catch(e){
+    console.warn('Erro ao salvar', e);
+  }
+}
+
+function restaurarEstado(){
+  try{
+    const dados = localStorage.getItem('confereSmartPedidos');
+    if(!dados) return;
+
+    const lista = JSON.parse(dados);
+
+    pedidos = lista.map(p => ({
+      ...p,
+      dtInicio: p.dtInicio ? new Date(p.dtInicio) : null,
+      dtFim: p.dtFim ? new Date(p.dtFim) : null,
+      timerInterval: null
+    }));
+
+    if(pedidos.length){
+      abaAtiva = pedidos[0].id;
+      nextId = Math.max(...pedidos.map(p=>p.id))+1;
+
+      renderAbas();
+      renderSidebar();
+      renderMain();
+      atualizarBNs();
+
+      showToast('Sessão restaurada');
+    }
+  }catch(e){
+    console.warn(e);
+  }
+}
+
+setInterval(salvarEstadoAutomatico, 3000);
+
+window.addEventListener('beforeunload', salvarEstadoAutomatico);
+
+// Vibração
+function vibrar(tipo='ok'){
+  if(!navigator.vibrate) return;
+
+  if(tipo==='ok'){
+    navigator.vibrate(80);
+  }else{
+    navigator.vibrate([120,60,120]);
+  }
+}
+
+// Som simples
+function beep(freq=600,duration=120){
+  try{
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+
+    osc.type = 'sine';
+    osc.frequency.value = freq;
+
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+
+    osc.start();
+
+    gain.gain.exponentialRampToValueAtTime(
+      0.0001,
+      ctx.currentTime + duration/1000
+    );
+
+    osc.stop(ctx.currentTime + duration/1000);
+  }catch(e){}
+}
+
+// Melhor feedback em scanner
+function feedbackOK(){
+  vibrar('ok');
+  beep(800,100);
+}
+
+function feedbackErro(){
+  vibrar('erro');
+  beep(250,220);
+}
+
+// Atalho rápido: Enter confirma item
+document.addEventListener('keydown', e=>{
+  const modal = document.getElementById('scan-modal');
+
+  if(
+    e.key === 'Enter' &&
+    modal &&
+    modal.classList.contains('open')
+  ){
+    const confirma = document.getElementById('scan-confirma');
+
+    if(confirma && confirma.style.display !== 'none'){
+      confirmarQtd();
+    }
+  }
+});
+
+// Restaurar sessão automaticamente
+setTimeout(restaurarEstado, 700);
+
+// Melhorias visuais
+const style = document.createElement('style');
+style.innerHTML = `
+.ir{
+  transition:all .18s ease;
+}
+
+.ir:hover{
+  transform:translateY(-1px);
+}
+
+.btn{
+  transition:transform .12s ease, opacity .15s ease;
+}
+
+.btn:active{
+  transform:scale(.97);
+}
+
+.tw{
+  box-shadow:0 10px 30px rgba(0,0,0,.18);
+}
+
+#upload-zone{
+  backdrop-filter:blur(6px);
+}
+
+.aba-ativa{
+  box-shadow:0 0 0 1px rgba(240,180,41,.4);
+}
+`;
+
+document.head.appendChild(style);
+
+// Melhor experiência OCR
+async function preprocessarImagemOCR(file){
+  return file;
+}
+
+</script>
 </head>
 <body>
 
@@ -474,7 +719,7 @@ function renderAbas(){
     const pct=p.pedido.itens.length>0?Math.round((ok+dv)/p.pedido.itens.length*100):0;
     const dot=p.finalizado?'🟢':p.iniciado?'🟡':'⚪';
     return`<div class="aba ${p.id===abaAtiva?'aba-ativa':''}" onclick="trocarAba(${p.id})">${dot} <span style="font-weight:600">#${p.pedido.seq}</span> <span class="aba-pct">${pct}%</span><button class="aba-close" onclick="event.stopPropagation();fecharPedido(${p.id})">×</button></div>`
-  }).join('')+`<button class="aba-novo" onclick="abrirNovoPedido()">＋ Novo</button>`
+  }).join('')+`<button class="aba-novo" onclick="abrirNovoPedido()">＋ Novo</button><button class="aba-novo" onclick="abrirImagemPedido()">📸 Foto</button>`
 }
 window.trocarAba=(id)=>{salvarCampos();abaAtiva=id;fecharDrawer();renderAbas();renderSidebar();renderMain();atualizarBNs()}
 window.fecharPedido=(id)=>{const p=pedidos.find(x=>x.id===id);if(p?.iniciado&&!p.finalizado&&!confirm('Pedido em conferência. Fechar?'))return;clearInterval(p?.timerInterval);pedidos=pedidos.filter(x=>x.id!==id);if(abaAtiva===id)abaAtiva=pedidos.length?pedidos[pedidos.length-1].id:null;renderAbas();if(abaAtiva){renderSidebar();renderMain()}else{document.getElementById('sidebar-content').innerHTML='<div style="padding:40px 16px;text-align:center;color:var(--muted);font-size:13px"><div style="font-size:36px;margin-bottom:12px">📋</div>Nenhum pedido.<br><span style="color:var(--accent)">Toque em ＋ Novo PDF</span></div>';renderMainVazio();}atualizarBNs()}
@@ -536,7 +781,7 @@ function renderMainVazio(){document.getElementById('main-area').innerHTML=`<div 
 function renderMainUpload(){
   document.getElementById('main-area').innerHTML=`
     <div id="upload-zone"><div class="uz-ic">📋</div><div class="uz-t">Carregar Pedido DAV</div><div class="uz-s">Toque aqui ou arraste o PDF do pedido<br><span style="font-size:11px;opacity:.6">DAV — Documento Auxiliar de Venda</span></div><input type="file" id="file-input" accept=".pdf"/></div>
-    <div style="text-align:center;margin:10px 0;color:var(--muted);font-size:12px">ou</div>
+    <div style="text-align:center;margin:10px 0;color:var(--muted);font-size:12px"></div>
     <div style="text-align:center;display:flex;flex-direction:column;gap:10px;align-items:center">
       ${abaAtiva?`<button class="btn btn-g" style="width:100%;max-width:340px;color:var(--muted);font-size:12px" onclick="cancelarUpload()">← Cancelar</button>`:''}
     </div>`;
@@ -1625,6 +1870,250 @@ if ('serviceWorker' in navigator) {
       .catch(err => console.log('SW erro:', err));
   });
 }
+
+// ── OCR POR FOTO ───────────────────────────────────
+window.abrirImagemPedido = function(){
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = 'image/*';
+  input.capture = 'environment';
+
+  input.onchange = async (e)=>{
+    const file = e.target.files[0];
+    if(!file) return;
+
+    try{
+      showToast('Processando imagem...');
+
+      if(typeof Tesseract === 'undefined'){
+        showToast('OCR não carregado','error');
+        return;
+      }
+
+      const result = await Tesseract.recognize(
+        file,
+        'por',
+        {
+          logger: m => {
+            if(m.status === 'recognizing text'){
+              const pct = Math.round(m.progress * 100);
+              showToast('OCR '+pct+'%');
+            }
+          }
+        }
+      );
+
+      const texto = result.data.text;
+
+      const pedido = parsearTextoOCR(texto);
+
+      if(!pedido || !pedido.itens.length){
+        document.getElementById('main-area').innerHTML = `
+          <div style="padding:20px">
+            <div style="font-size:18px;font-weight:800;color:var(--danger);margin-bottom:10px">
+              Não foi possível identificar os itens
+            </div>
+            <pre style="white-space:pre-wrap;background:var(--surface2);padding:12px;border-radius:10px;max-height:60vh;overflow:auto">${texto}</pre>
+          </div>
+        `;
+        return;
+      }
+
+      criarPedido(pedido);
+      feedbackOK(); showToast('Pedido criado via OCR!');
+
+    }catch(err){
+      console.error(err);
+      showToast('Erro no OCR','error');
+    }
+  };
+
+  input.click();
+}
+
+function parsearTextoOCR(texto){
+  const linhas = texto.split('\\n').map(l => l.trim()).filter(Boolean);
+
+  const itens = [];
+
+  for(const linha of linhas){
+
+    // tenta identificar padrões comuns
+    const match = linha.match(/(\\d{3,})\\s+(.*?)\\s+(\\d+)\\s*(UN|CX|FD|PC|KG)?$/i);
+
+    if(match){
+      itens.push({
+        cod: match[1],
+        desc: match[2],
+        qtd: Number(match[3]),
+        und: match[4] || 'UN'
+      });
+    }
+  }
+
+  return {
+    seq: 'OCR-' + Date.now(),
+    cliente: 'Pedido por imagem',
+    vendedor: 'OCR',
+    cidade: '',
+    uf: '',
+    data: new Date().toLocaleDateString('pt-BR'),
+    total: 0,
+    itens
+  };
+}
+
+
+// ── MELHORIAS PROFISSIONAIS ─────────────────────────
+
+// Auto save
+function salvarEstadoAutomatico(){
+  try{
+    localStorage.setItem('confereSmartPedidos', JSON.stringify(pedidos));
+  }catch(e){
+    console.warn('Erro ao salvar', e);
+  }
+}
+
+function restaurarEstado(){
+  try{
+    const dados = localStorage.getItem('confereSmartPedidos');
+    if(!dados) return;
+
+    const lista = JSON.parse(dados);
+
+    pedidos = lista.map(p => ({
+      ...p,
+      dtInicio: p.dtInicio ? new Date(p.dtInicio) : null,
+      dtFim: p.dtFim ? new Date(p.dtFim) : null,
+      timerInterval: null
+    }));
+
+    if(pedidos.length){
+      abaAtiva = pedidos[0].id;
+      nextId = Math.max(...pedidos.map(p=>p.id))+1;
+
+      renderAbas();
+      renderSidebar();
+      renderMain();
+      atualizarBNs();
+
+      showToast('Sessão restaurada');
+    }
+  }catch(e){
+    console.warn(e);
+  }
+}
+
+setInterval(salvarEstadoAutomatico, 3000);
+
+window.addEventListener('beforeunload', salvarEstadoAutomatico);
+
+// Vibração
+function vibrar(tipo='ok'){
+  if(!navigator.vibrate) return;
+
+  if(tipo==='ok'){
+    navigator.vibrate(80);
+  }else{
+    navigator.vibrate([120,60,120]);
+  }
+}
+
+// Som simples
+function beep(freq=600,duration=120){
+  try{
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+
+    osc.type = 'sine';
+    osc.frequency.value = freq;
+
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+
+    osc.start();
+
+    gain.gain.exponentialRampToValueAtTime(
+      0.0001,
+      ctx.currentTime + duration/1000
+    );
+
+    osc.stop(ctx.currentTime + duration/1000);
+  }catch(e){}
+}
+
+// Melhor feedback em scanner
+function feedbackOK(){
+  vibrar('ok');
+  beep(800,100);
+}
+
+function feedbackErro(){
+  vibrar('erro');
+  beep(250,220);
+}
+
+// Atalho rápido: Enter confirma item
+document.addEventListener('keydown', e=>{
+  const modal = document.getElementById('scan-modal');
+
+  if(
+    e.key === 'Enter' &&
+    modal &&
+    modal.classList.contains('open')
+  ){
+    const confirma = document.getElementById('scan-confirma');
+
+    if(confirma && confirma.style.display !== 'none'){
+      confirmarQtd();
+    }
+  }
+});
+
+// Restaurar sessão automaticamente
+setTimeout(restaurarEstado, 700);
+
+// Melhorias visuais
+const style = document.createElement('style');
+style.innerHTML = `
+.ir{
+  transition:all .18s ease;
+}
+
+.ir:hover{
+  transform:translateY(-1px);
+}
+
+.btn{
+  transition:transform .12s ease, opacity .15s ease;
+}
+
+.btn:active{
+  transform:scale(.97);
+}
+
+.tw{
+  box-shadow:0 10px 30px rgba(0,0,0,.18);
+}
+
+#upload-zone{
+  backdrop-filter:blur(6px);
+}
+
+.aba-ativa{
+  box-shadow:0 0 0 1px rgba(240,180,41,.4);
+}
+`;
+
+document.head.appendChild(style);
+
+// Melhor experiência OCR
+async function preprocessarImagemOCR(file){
+  return file;
+}
+
 </script>
 </body>
 </html>
