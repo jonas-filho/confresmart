@@ -274,251 +274,6 @@ header{position:fixed;top:0;left:0;right:0;height:var(--hh);background:var(--sur
   #main-area{margin-left:320px}
 }
 </style>
-<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js">
-// ── OCR POR FOTO ───────────────────────────────────
-window.abrirImagemPedido = function(){
-  const input = document.createElement('input');
-  input.type = 'file';
-  input.accept = 'image/*';
-  input.capture = 'environment';
-
-  input.onchange = async (e)=>{
-    const file = e.target.files[0];
-    if(!file) return;
-
-    try{
-      showToast('Processando imagem...');
-
-      if(typeof Tesseract === 'undefined'){
-        showToast('OCR não carregado','error');
-        return;
-      }
-
-      const result = await Tesseract.recognize(
-        file,
-        'por',
-        {
-          logger: m => {
-            if(m.status === 'recognizing text'){
-              const pct = Math.round(m.progress * 100);
-              showToast('OCR '+pct+'%');
-            }
-          }
-        }
-      );
-
-      const texto = result.data.text;
-
-      const pedido = parsearTextoOCR(texto);
-
-      if(!pedido || !pedido.itens.length){
-        document.getElementById('main-area').innerHTML = `
-          <div style="padding:20px">
-            <div style="font-size:18px;font-weight:800;color:var(--danger);margin-bottom:10px">
-              Não foi possível identificar os itens
-            </div>
-            <pre style="white-space:pre-wrap;background:var(--surface2);padding:12px;border-radius:10px;max-height:60vh;overflow:auto">${texto}</pre>
-          </div>
-        `;
-        return;
-      }
-
-      criarPedido(pedido);
-      feedbackOK(); showToast('Pedido criado via OCR!');
-
-    }catch(err){
-      console.error(err);
-      showToast('Erro no OCR','error');
-    }
-  };
-
-  input.click();
-}
-
-function parsearTextoOCR(texto){
-  const linhas = texto.split('\\n').map(l => l.trim()).filter(Boolean);
-
-  const itens = [];
-
-  for(const linha of linhas){
-
-    // tenta identificar padrões comuns
-    const match = linha.match(/(\\d{3,})\\s+(.*?)\\s+(\\d+)\\s*(UN|CX|FD|PC|KG)?$/i);
-
-    if(match){
-      itens.push({
-        cod: match[1],
-        desc: match[2],
-        qtd: Number(match[3]),
-        und: match[4] || 'UN'
-      });
-    }
-  }
-
-  return {
-    seq: 'OCR-' + Date.now(),
-    cliente: 'Pedido por imagem',
-    vendedor: 'OCR',
-    cidade: '',
-    uf: '',
-    data: new Date().toLocaleDateString('pt-BR'),
-    total: 0,
-    itens
-  };
-}
-
-
-// ── MELHORIAS PROFISSIONAIS ─────────────────────────
-
-// Auto save
-function salvarEstadoAutomatico(){
-  try{
-    localStorage.setItem('confereSmartPedidos', JSON.stringify(pedidos));
-  }catch(e){
-    console.warn('Erro ao salvar', e);
-  }
-}
-
-function restaurarEstado(){
-  try{
-    const dados = localStorage.getItem('confereSmartPedidos');
-    if(!dados) return;
-
-    const lista = JSON.parse(dados);
-
-    pedidos = lista.map(p => ({
-      ...p,
-      dtInicio: p.dtInicio ? new Date(p.dtInicio) : null,
-      dtFim: p.dtFim ? new Date(p.dtFim) : null,
-      timerInterval: null
-    }));
-
-    if(pedidos.length){
-      abaAtiva = pedidos[0].id;
-      nextId = Math.max(...pedidos.map(p=>p.id))+1;
-
-      renderAbas();
-      renderSidebar();
-      renderMain();
-      atualizarBNs();
-
-      showToast('Sessão restaurada');
-    }
-  }catch(e){
-    console.warn(e);
-  }
-}
-
-setInterval(salvarEstadoAutomatico, 3000);
-
-window.addEventListener('beforeunload', salvarEstadoAutomatico);
-
-// Vibração
-function vibrar(tipo='ok'){
-  if(!navigator.vibrate) return;
-
-  if(tipo==='ok'){
-    navigator.vibrate(80);
-  }else{
-    navigator.vibrate([120,60,120]);
-  }
-}
-
-// Som simples
-function beep(freq=600,duration=120){
-  try{
-    const ctx = new (window.AudioContext || window.webkitAudioContext)();
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-
-    osc.type = 'sine';
-    osc.frequency.value = freq;
-
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-
-    osc.start();
-
-    gain.gain.exponentialRampToValueAtTime(
-      0.0001,
-      ctx.currentTime + duration/1000
-    );
-
-    osc.stop(ctx.currentTime + duration/1000);
-  }catch(e){}
-}
-
-// Melhor feedback em scanner
-function feedbackOK(){
-  vibrar('ok');
-  beep(800,100);
-}
-
-function feedbackErro(){
-  vibrar('erro');
-  beep(250,220);
-}
-
-// Atalho rápido: Enter confirma item
-document.addEventListener('keydown', e=>{
-  const modal = document.getElementById('scan-modal');
-
-  if(
-    e.key === 'Enter' &&
-    modal &&
-    modal.classList.contains('open')
-  ){
-    const confirma = document.getElementById('scan-confirma');
-
-    if(confirma && confirma.style.display !== 'none'){
-      confirmarQtd();
-    }
-  }
-});
-
-// Restaurar sessão automaticamente
-setTimeout(restaurarEstado, 700);
-
-// Melhorias visuais
-const style = document.createElement('style');
-style.innerHTML = `
-.ir{
-  transition:all .18s ease;
-}
-
-.ir:hover{
-  transform:translateY(-1px);
-}
-
-.btn{
-  transition:transform .12s ease, opacity .15s ease;
-}
-
-.btn:active{
-  transform:scale(.97);
-}
-
-.tw{
-  box-shadow:0 10px 30px rgba(0,0,0,.18);
-}
-
-#upload-zone{
-  backdrop-filter:blur(6px);
-}
-
-.aba-ativa{
-  box-shadow:0 0 0 1px rgba(240,180,41,.4);
-}
-`;
-
-document.head.appendChild(style);
-
-// Melhor experiência OCR
-async function preprocessarImagemOCR(file){
-  return file;
-}
-
-</script>
 </head>
 <body>
 
@@ -583,16 +338,23 @@ async function preprocessarImagemOCR(file){
     <!-- Estado: aguardando leitura -->
     <div id="scan-aguardando">
       <div id="scan-status" style="text-align:center;font-family:var(--mono);font-size:13px;color:var(--muted);padding:6px 0">Aponte a câmera para o código de barras</div>
-      <!-- Campo de digitação manual -->
-      <div style="display:flex;gap:8px;margin-top:8px">
+      <!-- Campo de digitação manual — só mostra quando câmera falha ou usuário pede -->
+      <div id="div-manual" style="display:none;gap:8px;margin-top:8px">
         <input id="scan-manual-input" type="text" inputmode="numeric"
-          placeholder="Ou digite o código aqui..."
+          placeholder="Digite o código do produto..."
           style="flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:9px 12px;color:var(--text);font-family:var(--mono);font-size:14px;outline:none;min-width:0"
           onkeydown="if(event.key==='Enter')submitManual()"
         />
         <button onclick="submitManual()"
           style="padding:9px 14px;background:var(--accent);border:none;border-radius:8px;color:#0d1117;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap">
           OK
+        </button>
+      </div>
+      <!-- Botão discreto para abrir teclado manualmente -->
+      <div style="text-align:center;margin-top:8px">
+        <button id="btn-digitar" onclick="mostrarCampoManual()"
+          style="background:transparent;border:1px solid var(--border);border-radius:8px;padding:6px 14px;color:var(--muted);font-size:12px;cursor:pointer;font-family:var(--sans)">
+          ⌨ Digitar código manualmente
         </button>
       </div>
     </div>
@@ -719,7 +481,7 @@ function renderAbas(){
     const pct=p.pedido.itens.length>0?Math.round((ok+dv)/p.pedido.itens.length*100):0;
     const dot=p.finalizado?'🟢':p.iniciado?'🟡':'⚪';
     return`<div class="aba ${p.id===abaAtiva?'aba-ativa':''}" onclick="trocarAba(${p.id})">${dot} <span style="font-weight:600">#${p.pedido.seq}</span> <span class="aba-pct">${pct}%</span><button class="aba-close" onclick="event.stopPropagation();fecharPedido(${p.id})">×</button></div>`
-  }).join('')+`<button class="aba-novo" onclick="abrirNovoPedido()">＋ Novo</button><button class="aba-novo" onclick="abrirImagemPedido()">📸 Foto</button>`
+  }).join('')+`<button class="aba-novo" onclick="abrirNovoPedido()">＋ Novo</button>`
 }
 window.trocarAba=(id)=>{salvarCampos();abaAtiva=id;fecharDrawer();renderAbas();renderSidebar();renderMain();atualizarBNs()}
 window.fecharPedido=(id)=>{const p=pedidos.find(x=>x.id===id);if(p?.iniciado&&!p.finalizado&&!confirm('Pedido em conferência. Fechar?'))return;clearInterval(p?.timerInterval);pedidos=pedidos.filter(x=>x.id!==id);if(abaAtiva===id)abaAtiva=pedidos.length?pedidos[pedidos.length-1].id:null;renderAbas();if(abaAtiva){renderSidebar();renderMain()}else{document.getElementById('sidebar-content').innerHTML='<div style="padding:40px 16px;text-align:center;color:var(--muted);font-size:13px"><div style="font-size:36px;margin-bottom:12px">📋</div>Nenhum pedido.<br><span style="color:var(--accent)">Toque em ＋ Novo PDF</span></div>';renderMainVazio();}atualizarBNs()}
@@ -1255,6 +1017,11 @@ async function abrirScanner() {
   document.getElementById('scan-confirma').style.display  = 'none';
   document.getElementById('scan-aguardando').style.display = 'block';
   document.getElementById('scan-status').textContent = 'Iniciando câmera...';
+  // Campo manual começa escondido
+  const divM = document.getElementById('div-manual');
+  const btnD = document.getElementById('btn-digitar');
+  if (divM) divM.style.display = 'none';
+  if (btnD) btnD.style.display = 'block';
 
   try {
     // Tenta carregar ZXing se não estiver disponível ainda
@@ -1278,15 +1045,16 @@ async function abrirScanner() {
     const statusEl = document.getElementById('scan-status');
     if (isPerm) {
       statusEl.innerHTML = `<span style="color:var(--danger)">⚠ Câmera bloqueada</span><br>
-        <span style="font-size:11px;color:var(--muted)">Permita o acesso à câmera no Chrome.<br>
-        Use o campo abaixo para digitar o código.</span>`;
+        <span style="font-size:11px;color:var(--muted)">
+          Abra o app pelo link:<br>
+          <strong style="color:var(--accent)">jonas-filho.github.io/confresmart</strong><br>
+          e permita o acesso à câmera.
+        </span>`;
     } else {
-      statusEl.textContent = '⚠ Câmera indisponível — digite o código abaixo';
+      statusEl.textContent = '⚠ Câmera indisponível — use o campo abaixo';
     }
-    setTimeout(() => {
-      const inp = document.getElementById('scan-manual-input');
-      if (inp) { inp.focus(); inp.placeholder = 'Digite o código do produto...'; }
-    }, 300);
+    // Mostra campo manual automaticamente quando câmera falha
+    mostrarCampoManual();
   }
 }
 
@@ -1386,57 +1154,79 @@ function processarCodigo(cod) {
   const item = p.pedido.itens[idx];
   const conf = p.conferencia[idx];
 
+  // Item já conferido como OK → permite somar mais (rebipe)
   if (conf.status === 'ok') {
-    beep(660, 100, 0.2, 'dup');
+    beep(660, 80, 0.2, 'dup');
     flashFeedback('dup');
-    document.getElementById('scan-status').textContent = '🔄 Já conferido: ' + item.desc.substring(0,40);
+    // Abre confirma em modo "adicionar mais"
+    abrirConfirma(idx, true);
     return;
   }
 
   // Item encontrado e ainda não conferido → abre painel de confirmação
   beep(880, 60, 0.2, 'ok');
-  abrirConfirma(idx);
+  abrirConfirma(idx, false);
 }
 
-function abrirConfirma(idx) {
+
+let confirmandoModoAdicionar = false;
+
+function abrirConfirma(idx, modoAdicionar) {
+  modoAdicionar = modoAdicionar || false;
   confirmandoIdx = idx;
   const p = getPed();
   const item = p.pedido.itens[idx];
   const conf = p.conferencia[idx];
-  const qtdAtual = typeof conf.qtdConferida === 'number' && conf.qtdConferida > 0 ? conf.qtdConferida : item.qtd;
+  const jaConferido = typeof conf.qtdConferida === 'number' && conf.qtdConferida > 0 ? conf.qtdConferida : 0;
+  const faltando = Math.max(0, item.qtd - jaConferido);
 
-  // Preenche os dados do item
   document.getElementById('sc-cod').textContent  = item.cod + ' · ' + item.und;
   document.getElementById('sc-desc').textContent = item.desc;
-  document.getElementById('sc-pedido').textContent = 'Pedido: ' + item.qtd + ' ' + item.und + (conf.qtdConferida > 0 ? ' · Anterior: ' + conf.qtdConferida : '');
-  document.getElementById('sc-qtd-input').value = qtdAtual;
 
-  // Atalhos rápidos: qtd do pedido ±1 e alguns valores comuns
+  if (modoAdicionar && jaConferido > 0) {
+    document.getElementById('sc-pedido').innerHTML =
+      'Pedido: <strong>' + item.qtd + ' ' + item.und + '</strong> &nbsp;·&nbsp; ' +
+      'Já conf.: <span style="color:var(--accent2)">' + jaConferido + '</span> &nbsp;·&nbsp; ' +
+      'Faltando: <span style="color:var(--warn)">' + faltando + '</span>';
+    document.getElementById('sc-qtd-input').value = faltando > 0 ? faltando : 1;
+  } else {
+    document.getElementById('sc-pedido').textContent =
+      'Pedido: ' + item.qtd + ' ' + item.und +
+      (jaConferido > 0 ? ' · Anterior: ' + jaConferido : '');
+    document.getElementById('sc-qtd-input').value = jaConferido > 0 ? jaConferido : item.qtd;
+  }
+
+  // Atalhos rápidos
   const atalhos = new Set([1, item.qtd]);
+  if (faltando > 0 && faltando !== item.qtd) atalhos.add(faltando);
   if (item.qtd > 1) atalhos.add(item.qtd - 1);
   if (item.qtd < 20) atalhos.add(item.qtd + 1);
-  [2,3,5,10,12,24].forEach(v => { if (v <= item.qtd + 5) atalhos.add(v); });
+  [2,3,5,10,12,24].forEach(function(v){ if (v <= item.qtd + 5) atalhos.add(v); });
 
-  document.getElementById('sc-qtd-atalhos').innerHTML = [...atalhos].sort((a,b)=>a-b).map(v =>
-    `<button onclick="setQtdRapida(${v})"
-      style="padding:6px 12px;border-radius:8px;border:1px solid ${v===item.qtd?'var(--accent2)':'var(--border)'};
-      background:${v===item.qtd?'rgba(34,197,94,.15)':'var(--surface)'};
-      color:${v===item.qtd?'var(--accent2)':'var(--muted)'};
-      font-family:var(--mono);font-size:13px;font-weight:600;cursor:pointer">
-      ${v}
-    </button>`
-  ).join('');
+  document.getElementById('sc-qtd-atalhos').innerHTML = Array.from(atalhos).sort(function(a,b){return a-b}).map(function(v){
+    var isFaltando = v === faltando && faltando > 0 && modoAdicionar;
+    var isEsperado = v === item.qtd;
+    var cor    = isFaltando ? 'var(--warn)' : isEsperado ? 'var(--accent2)' : 'var(--muted)';
+    var bg     = isFaltando ? 'rgba(249,115,22,.15)' : isEsperado ? 'rgba(34,197,94,.15)' : 'var(--surface)';
+    var border = isFaltando ? 'var(--warn)' : isEsperado ? 'var(--accent2)' : 'var(--border)';
+    return '<button onclick="setQtdRapida(' + v + ')" style="padding:6px 12px;border-radius:8px;border:1px solid ' + border + ';background:' + bg + ';color:' + cor + ';font-family:var(--mono);font-size:13px;font-weight:600;cursor:pointer">' + v + (isFaltando ? ' (falta)' : '') + '</button>';
+  }).join('');
 
-  // Mostra painel de confirmação, esconde aguardando
+  // Botão confirmar muda o texto
+  var btnConf = document.querySelector('#scan-confirma button[onclick="confirmarQtd()"]');
+  if (btnConf) btnConf.textContent = (modoAdicionar && jaConferido > 0) ? '✓ Somar ao conferido' : '✓ Confirmar';
+
+  confirmandoModoAdicionar = modoAdicionar && jaConferido > 0;
+
   document.getElementById('scan-aguardando').style.display = 'none';
   document.getElementById('scan-confirma').style.display  = 'block';
 
-  // Foca no input e seleciona tudo para digitar direto
-  setTimeout(() => {
-    const inp = document.getElementById('sc-qtd-input');
+  setTimeout(function(){
+    var inp = document.getElementById('sc-qtd-input');
     inp.focus(); inp.select();
   }, 100);
 }
+
 
 window.ajustarQtd = (delta) => {
   const inp = document.getElementById('sc-qtd-input');
@@ -1470,23 +1260,47 @@ window.confirmarQtd = () => {
   const idx  = confirmandoIdx;
   const item = p.pedido.itens[idx];
   const conf = p.conferencia[idx];
-  const qtd  = parseInt(document.getElementById('sc-qtd-input').value) || 0;
+  const qtdDigitada = parseInt(document.getElementById('sc-qtd-input').value) || 0;
 
-  conf.qtdConferida = qtd;
-  conf.status = qtd === item.qtd ? 'ok' : qtd > 0 ? 'divergente' : 'pendente';
+  // SOMA se estiver em modo adicionar, SUBSTITUI se for primeira conferência
+  if (confirmandoModoAdicionar) {
+    const jaConferido = typeof conf.qtdConferida === 'number' ? conf.qtdConferida : 0;
+    conf.qtdConferida = jaConferido + qtdDigitada;
+  } else {
+    conf.qtdConferida = qtdDigitada;
+  }
+
+  // Define status com base no total acumulado
+  const totalConferido = conf.qtdConferida;
+  conf.status = totalConferido === item.qtd ? 'ok' : totalConferido > 0 ? 'divergente' : 'pendente';
 
   if (conf.status === 'ok') {
     beep(880, 120, 0.35, 'ok');
     flashFeedback('ok');
     if (navigator.vibrate) navigator.vibrate(80);
+    document.getElementById('scan-status').textContent = '✓ OK — ' + totalConferido + '/' + item.qtd + ' ' + item.und;
   } else if (conf.status === 'divergente') {
-    beep(440, 200, 0.4, 'err');
-    flashFeedback('err');
-    if (navigator.vibrate) navigator.vibrate([80,40,80]);
+    const faltando = item.qtd - totalConferido;
+    if (faltando > 0) {
+      // Ainda faltam itens — avisa mas não fecha
+      beep(660, 80, 0.2, 'dup');
+      flashFeedback('dup');
+      if (navigator.vibrate) navigator.vibrate(40);
+      document.getElementById('scan-status').textContent =
+        '📦 ' + totalConferido + '/' + item.qtd + ' — faltam ' + faltando + ' ' + item.und;
+    } else {
+      // Excedeu — alerta
+      beep(440, 200, 0.4, 'err');
+      flashFeedback('err');
+      if (navigator.vibrate) navigator.vibrate([80,40,80]);
+      document.getElementById('scan-status').textContent =
+        '⚠ Excedido: ' + totalConferido + ' (pedido: ' + item.qtd + ')';
+    }
   }
 
   atualizarProg(p);
   atualizarContadorScan(p);
+  confirmandoModoAdicionar = false;
 
   // Atualiza linha na tabela
   const row = document.getElementById('row-' + idx);
@@ -1503,10 +1317,18 @@ window.cancelarConfirma = () => fecharConfirma();
 
 function fecharConfirma() {
   confirmandoIdx = null;
-  ultimoCod = ''; ultimoTs = 0; // permite reler o mesmo código
+  ultimoCod = ''; ultimoTs = 0;
   document.getElementById('scan-confirma').style.display  = 'none';
   document.getElementById('scan-aguardando').style.display = 'block';
   document.getElementById('scan-status').textContent = 'Aponte a câmera para o próximo item';
+  // Esconde campo manual (só aparece se câmera falhar ou usuário pedir)
+  const divManual = document.getElementById('div-manual');
+  const btnDigitar = document.getElementById('btn-digitar');
+  if (divManual)  { divManual.style.display = 'none'; }
+  if (btnDigitar) { btnDigitar.style.display = 'block'; }
+  // Limpa campo manual
+  const manualInp = document.getElementById('scan-manual-input');
+  if (manualInp) { manualInp.value = ''; }
 }
 
 function atualizarContadorScan(p) {
@@ -1522,7 +1344,17 @@ function atualizarContadorScan(p) {
 }
 
 // Digitação manual de código
-window.submitManual = () => {
+// Mostra campo de digitação manual (chamado pelo botão ou quando câmera falha)
+window.mostrarCampoManual = () => {
+  const div = document.getElementById('div-manual');
+  const btn = document.getElementById('btn-digitar');
+  if (div) { div.style.display = 'flex'; }
+  if (btn) { btn.style.display = 'none'; }
+  setTimeout(() => {
+    const inp = document.getElementById('scan-manual-input');
+    if (inp) inp.focus();
+  }, 100);
+};
   const inp = document.getElementById('scan-manual-input');
   if (!inp) return;
   const cod = inp.value.trim().replace(/\s/g,'');
@@ -1871,98 +1703,6 @@ if ('serviceWorker' in navigator) {
   });
 }
 
-// ── OCR POR FOTO ───────────────────────────────────
-window.abrirImagemPedido = function(){
-  const input = document.createElement('input');
-  input.type = 'file';
-  input.accept = 'image/*';
-  input.capture = 'environment';
-
-  input.onchange = async (e)=>{
-    const file = e.target.files[0];
-    if(!file) return;
-
-    try{
-      showToast('Processando imagem...');
-
-      if(typeof Tesseract === 'undefined'){
-        showToast('OCR não carregado','error');
-        return;
-      }
-
-      const result = await Tesseract.recognize(
-        file,
-        'por',
-        {
-          logger: m => {
-            if(m.status === 'recognizing text'){
-              const pct = Math.round(m.progress * 100);
-              showToast('OCR '+pct+'%');
-            }
-          }
-        }
-      );
-
-      const texto = result.data.text;
-
-      const pedido = parsearTextoOCR(texto);
-
-      if(!pedido || !pedido.itens.length){
-        document.getElementById('main-area').innerHTML = `
-          <div style="padding:20px">
-            <div style="font-size:18px;font-weight:800;color:var(--danger);margin-bottom:10px">
-              Não foi possível identificar os itens
-            </div>
-            <pre style="white-space:pre-wrap;background:var(--surface2);padding:12px;border-radius:10px;max-height:60vh;overflow:auto">${texto}</pre>
-          </div>
-        `;
-        return;
-      }
-
-      criarPedido(pedido);
-      feedbackOK(); showToast('Pedido criado via OCR!');
-
-    }catch(err){
-      console.error(err);
-      showToast('Erro no OCR','error');
-    }
-  };
-
-  input.click();
-}
-
-function parsearTextoOCR(texto){
-  const linhas = texto.split('\\n').map(l => l.trim()).filter(Boolean);
-
-  const itens = [];
-
-  for(const linha of linhas){
-
-    // tenta identificar padrões comuns
-    const match = linha.match(/(\\d{3,})\\s+(.*?)\\s+(\\d+)\\s*(UN|CX|FD|PC|KG)?$/i);
-
-    if(match){
-      itens.push({
-        cod: match[1],
-        desc: match[2],
-        qtd: Number(match[3]),
-        und: match[4] || 'UN'
-      });
-    }
-  }
-
-  return {
-    seq: 'OCR-' + Date.now(),
-    cliente: 'Pedido por imagem',
-    vendedor: 'OCR',
-    cidade: '',
-    uf: '',
-    data: new Date().toLocaleDateString('pt-BR'),
-    total: 0,
-    itens
-  };
-}
-
 
 // ── MELHORIAS PROFISSIONAIS ─────────────────────────
 
@@ -2109,10 +1849,82 @@ style.innerHTML = `
 
 document.head.appendChild(style);
 
-// Melhor experiência OCR
-async function preprocessarImagemOCR(file){
-  return file;
-}
+
+// ── LEITOR EXTERNO USB/BLUETOOTH ────────────────────────────────────────────
+// Leitores externos emulam teclado: digitam código + Enter rapidamente
+// Funciona em tablets, PCs e celulares com leitor Bluetooth
+(function() {
+  let buffer = '';
+  let lastKey = 0;
+  const VELOCIDADE_LEITOR = 60; // ms — leitor digita mais rápido que humano
+
+  document.addEventListener('keydown', function(e) {
+    // Se o scanner está aberto e há um campo focado que não é o manual, ignora
+    const scanModal = document.getElementById('scan-modal');
+    const modalAberto = scanModal && scanModal.classList.contains('open');
+    const manualFocado = document.activeElement &&
+      document.activeElement.id === 'scan-manual-input';
+
+    const agora = Date.now();
+    const intervalo = agora - lastKey;
+    lastKey = agora;
+
+    // Enter = submete o buffer se foi digitado rapidamente (leitor)
+    if (e.key === 'Enter') {
+      if (buffer.length >= 4 && intervalo < VELOCIDADE_LEITOR * 2) {
+        const cod = buffer.trim();
+        buffer = '';
+        e.preventDefault();
+
+        // Se modal do scanner está aberto, processa como código de barras
+        if (modalAberto) {
+          if (document.getElementById('scan-confirma').style.display === 'none') {
+            processarCodigo(cod);
+          }
+        } else {
+          // Scanner fechado mas há pedido ativo — abre confirma direto
+          const p = getPed();
+          if (p && p.iniciado && !p.finalizado) {
+            // Abre scanner se não estiver aberto
+            if (!modalAberto) {
+              processarCodigoExterno(cod);
+            }
+          }
+        }
+        return;
+      }
+      buffer = '';
+      return;
+    }
+
+    // Acumula caracteres se rápido (leitor) OU se campo manual está focado
+    if (e.key.length === 1) {
+      if (intervalo < VELOCIDADE_LEITOR || manualFocado) {
+        if (!manualFocado) {
+          e.preventDefault();
+          buffer += e.key;
+        }
+        // Se campo manual focado, deixa o browser lidar normalmente
+      } else {
+        // Digitação humana — limpa buffer
+        buffer = e.key;
+      }
+    }
+  });
+
+  // Processa código vindo de leitor externo sem o scanner aberto
+  window.processarCodigoExterno = function(cod) {
+    const p = getPed();
+    if (!p || !p.iniciado || p.finalizado) {
+      showToast('Inicie a conferência primeiro', 'warn');
+      return;
+    }
+    // Abre modal scanner e processa
+    abrirScanner().then(() => {
+      setTimeout(() => processarCodigo(cod), 300);
+    });
+  };
+})();
 
 </script>
 </body>
