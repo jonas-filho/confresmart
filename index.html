@@ -605,8 +605,12 @@ window.marcarItem=idx=>{
 window.setQtd=(idx,val)=>{
   const p=getPed();if(!p||!p.iniciado||p.finalizado)return;
   const conf=p.conferencia[idx],item=p.pedido.itens[idx];
-  conf.qtdConferida=val===''?'':Number(val);conf.status=val!==''?(Number(val)===item.qtd?'ok':'divergente'):'pendente';
-  atualizarProg(p);const row=document.getElementById('row-'+idx);if(row){const d=document.createElement('div');d.innerHTML=rowH(p,item,conf,idx);row.replaceWith(d.firstElementChild)}
+  // Sempre substitui quando digitado direto na tabela — é a quantidade TOTAL
+  conf.qtdConferida=val===''?'':Number(val);
+  conf.status=val!==''?(Number(val)===item.qtd?'ok':'divergente'):'pendente';
+  atualizarProg(p);
+  const row=document.getElementById('row-'+idx);
+  if(row){const d=document.createElement('div');d.innerHTML=rowH(p,item,conf,idx);row.replaceWith(d.firstElementChild)}
 };
 
 // ── PROGRESSO ───────────────────────────────────────
@@ -1144,26 +1148,25 @@ function processarCodigo(cod) {
   );
 
   if (idx === -1) {
-    // Não encontrado
     beep(440, 200, 0.4, 'err');
     flashFeedback('err');
-    document.getElementById('scan-status').textContent = '❌ Código não encontrado no pedido: ' + cod;
+    document.getElementById('scan-status').textContent = '❌ Código não encontrado: ' + cod;
     return;
   }
 
   const item = p.pedido.itens[idx];
   const conf = p.conferencia[idx];
+  const jaTemQtd = typeof conf.qtdConferida === 'number' && conf.qtdConferida > 0;
 
-  // Item já conferido como OK → permite somar mais (rebipe)
-  if (conf.status === 'ok') {
+  // Item OK ou divergente com quantidade → abre em modo SOMA
+  if (conf.status === 'ok' || (conf.status === 'divergente' && jaTemQtd)) {
     beep(660, 80, 0.2, 'dup');
     flashFeedback('dup');
-    // Abre confirma em modo "adicionar mais"
-    abrirConfirma(idx, true);
+    abrirConfirma(idx, true); // modo adicionar
     return;
   }
 
-  // Item encontrado e ainda não conferido → abre painel de confirmação
+  // Item pendente sem quantidade → primeira leitura
   beep(880, 60, 0.2, 'ok');
   abrirConfirma(idx, false);
 }
@@ -1343,8 +1346,7 @@ function atualizarContadorScan(p) {
   if(divEl)  divEl.textContent  = `⚠ ${dv} Div.`;
 }
 
-// Digitação manual de código
-// Mostra campo de digitação manual (chamado pelo botão ou quando câmera falha)
+// Mostra campo de digitação manual
 window.mostrarCampoManual = () => {
   const div = document.getElementById('div-manual');
   const btn = document.getElementById('btn-digitar');
@@ -1355,6 +1357,9 @@ window.mostrarCampoManual = () => {
     if (inp) inp.focus();
   }, 100);
 };
+
+// Submete código digitado manualmente
+window.submitManual = () => {
   const inp = document.getElementById('scan-manual-input');
   if (!inp) return;
   const cod = inp.value.trim().replace(/\s/g,'');
