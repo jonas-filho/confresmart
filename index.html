@@ -524,7 +524,10 @@ function renderSidebar(){
     <div class="sb-acts">
       <button class="btn btn-p" ${p.iniciado?'disabled':''} onclick="iniciarConferencia()">▶ Iniciar Conferência</button>
       <button class="btn btn-s" ${!p.iniciado||p.finalizado?'disabled':''} onclick="finalizarConferencia()">✓ Finalizar e Ver Relatório</button>
-      ${p.finalizado?`<button class="btn btn-g" onclick="toggleView()">${p.view==='relatorio'?'← Ver Itens':'📊 Ver Relatório'}</button>`:''}
+      ${p.finalizado?`
+        <button class="btn btn-g" onclick="toggleView()">${p.view==='relatorio'?'← Ver Itens':'📊 Ver Relatório'}</button>
+        <button class="btn" onclick="reabrirPedido(${p.id})" style="background:rgba(240,180,41,.1);border:1px solid var(--accent);color:var(--accent)">🔓 Reabrir para Correção</button>
+      `:''}
       <button class="btn btn-d" onclick="resetarPedido(${p.id})">↺ Resetar</button>
     </div>`
 }
@@ -591,8 +594,31 @@ function rowH(p,item,conf,idx){
 
 function getFil(p){return p.pedido.itens.map((item,idx)=>({item,conf:p.conferencia[idx],idx})).filter(({item,conf})=>(p.filtro==='todos'||conf.status===p.filtro)&&(!p.busca||item.desc.toLowerCase().includes(p.busca.toLowerCase())||item.cod.includes(p.busca)))}
 
-window.setFiltro=f=>{const p=getPed();if(p){p.filtro=f;renderTabela()}};
-window.setBusca =v=>{const p=getPed();if(p){p.busca=v;renderTabela()}};
+window.setFiltro=f=>{const p=getPed();if(p){p.filtro=f;renderTabela();}};
+window.setBusca =v=>{
+  const p=getPed(); if(!p) return;
+  p.busca=v;
+  // Atualiza só as linhas da tabela sem recriar o input (preserva foco e cursor)
+  const tw = document.querySelector('.tw');
+  if (!tw) { renderTabela(); return; }
+  const fil = getFil(p);
+  // Remove linhas antigas (mantém o header)
+  const header = tw.querySelector('.ir.hr');
+  tw.innerHTML = '';
+  if (header) tw.appendChild(header);
+  if (fil.length === 0) {
+    const ni = document.createElement('div');
+    ni.className = 'ni';
+    ni.textContent = 'Nenhum item encontrado';
+    tw.appendChild(ni);
+  } else {
+    fil.forEach(({item,conf,idx}) => {
+      const d = document.createElement('div');
+      d.innerHTML = rowH(p, item, conf, idx);
+      tw.appendChild(d.firstElementChild);
+    });
+  }
+};
 
 // ── MARCAR / QTD ────────────────────────────────────
 window.marcarItem=idx=>{
@@ -645,7 +671,18 @@ window.finalizarConferencia=()=>{
   liberarWakeLock();
   renderSidebar();renderRel();renderAbas();atualizarBNs()
 };
-window.toggleView=()=>{const p=getPed();if(!p)return;p.view=p.view==='relatorio'?'itens':'relatorio';renderSidebar();renderMain()};
+window.reabrirPedido = id => {
+  const p = pedidos.find(x => x.id === id); if (!p) return;
+  if (!confirm('Reabrir o pedido para correção?\n\nAs quantidades conferidas serão mantidas, mas o pedido voltará ao estado "Em conferência" para que você possa fazer ajustes.')) return;
+  p.finalizado = false;
+  p.view = 'itens';
+  // Reinicia o timer a partir do ponto anterior
+  p.dtFim = null;
+  iniciarTimer(p);
+  fecharDrawer();
+  renderSidebar(); renderTabela(); renderAbas(); atualizarBNs();
+  showToast('Pedido reaberto — faça as correções necessárias', 'warn');
+};
 window.resetarPedido=id=>{
   const p=pedidos.find(x=>x.id===id);if(!p||!confirm('Resetar toda a conferência deste pedido?'))return;
   clearInterval(p.timerInterval);Object.assign(p,{conferencia:p.pedido.itens.map((_,i)=>({idx:i,qtdConferida:'',status:'pendente'})),iniciado:false,finalizado:false,dtInicio:null,dtFim:null,timerInterval:null,filtro:'todos',busca:'',view:'itens',obs:'',volumes:'',conferente:''});
