@@ -560,8 +560,27 @@ function renderTabela(){
   const fil=getFil(p);
   document.getElementById('main-area').innerHTML=`
     <div class="ih">
-      <div><div class="it">#${p.pedido.seq} · ${p.pedido.itens.length} itens</div><div style="font-size:11px;color:var(--muted);font-family:var(--mono)">R$ ${p.pedido.total.toFixed(2)} · ${p.pedido.cliente.split(' ').slice(0,2).join(' ')}</div></div>
-      <div class="sb"><span style="color:var(--muted);font-size:13px">🔍</span><input type="text" placeholder="Buscar..." value="${p.busca}" oninput="setBusca(this.value)"/></div>
+      <div style="display:flex;align-items:center;justify-content:space-between;width:100%;gap:8px;margin-bottom:8px">
+        <div>
+          <div class="it">#${p.pedido.seq} · ${p.pedido.itens.length} itens</div>
+          <div style="font-size:11px;color:var(--muted);font-family:var(--mono)">R$ ${p.pedido.total.toFixed(2)} · ${p.pedido.cliente.split(' ').slice(0,2).join(' ')}</div>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;width:100%;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:0 11px;margin-bottom:8px" onclick="this.querySelector('input').focus()">
+        <span style="color:var(--muted);font-size:14px;flex-shrink:0;pointer-events:none">🔍</span>
+        <input
+          id="busca-input"
+          type="text"
+          placeholder="Buscar por nome ou código..."
+          value="${p.busca}"
+          autocomplete="off"
+          autocorrect="off"
+          spellcheck="false"
+          style="flex:1;background:none;border:none;outline:none;color:var(--text);font-family:var(--mono);font-size:13px;padding:9px 8px"
+          oninput="setBusca(this.value)"
+        />
+        ${p.busca ? `<button onclick="event.stopPropagation();setBuscaLimpa()" style="background:none;border:none;color:var(--muted);font-size:18px;cursor:pointer;padding:0 2px;flex-shrink:0">×</button>` : ''}
+      </div>
       <div class="ft">
         <button class="tb ${p.filtro==='todos'?'act':''}" onclick="setFiltro('todos')">Todos</button>
         <button class="tb ${p.filtro==='pendente'?'act':''}" onclick="setFiltro('pendente')">Pend.</button>
@@ -595,28 +614,46 @@ function rowH(p,item,conf,idx){
 function getFil(p){return p.pedido.itens.map((item,idx)=>({item,conf:p.conferencia[idx],idx})).filter(({item,conf})=>(p.filtro==='todos'||conf.status===p.filtro)&&(!p.busca||item.desc.toLowerCase().includes(p.busca.toLowerCase())||item.cod.includes(p.busca)))}
 
 window.setFiltro=f=>{const p=getPed();if(p){p.filtro=f;renderTabela();}};
-window.setBusca =v=>{
+window.setBuscaLimpa=()=>{
+  const p=getPed(); if(!p) return;
+  p.busca='';
+  renderTabela();
+  setTimeout(()=>{const el=document.getElementById('busca-input');if(el)el.focus();},50);
+};
+window.setBusca=v=>{
   const p=getPed(); if(!p) return;
   p.busca=v;
-  // Atualiza só as linhas da tabela sem recriar o input (preserva foco e cursor)
-  const tw = document.querySelector('.tw');
-  if (!tw) { renderTabela(); return; }
-  const fil = getFil(p);
-  // Remove linhas antigas (mantém o header)
-  const header = tw.querySelector('.ir.hr');
-  tw.innerHTML = '';
-  if (header) tw.appendChild(header);
-  if (fil.length === 0) {
-    const ni = document.createElement('div');
-    ni.className = 'ni';
-    ni.textContent = 'Nenhum item encontrado';
+  const tw=document.querySelector('.tw');
+  if(!tw){renderTabela();return;}
+  const fil=getFil(p);
+  const header=tw.querySelector('.ir.hr');
+  tw.innerHTML='';
+  if(header) tw.appendChild(header);
+  if(fil.length===0){
+    const ni=document.createElement('div');
+    ni.className='ni';ni.textContent='Nenhum item encontrado';
     tw.appendChild(ni);
   } else {
-    fil.forEach(({item,conf,idx}) => {
-      const d = document.createElement('div');
-      d.innerHTML = rowH(p, item, conf, idx);
+    fil.forEach(({item,conf,idx})=>{
+      const d=document.createElement('div');
+      d.innerHTML=rowH(p,item,conf,idx);
       tw.appendChild(d.firstElementChild);
     });
+  }
+  // Mostra/esconde botão limpar sem destruir o input
+  const inp=document.getElementById('busca-input');
+  if(inp&&inp.parentElement){
+    let btn=inp.parentElement.querySelector('.btn-limpar-busca');
+    if(v&&!btn){
+      btn=document.createElement('button');
+      btn.className='btn-limpar-busca';
+      btn.onclick=e=>{e.stopPropagation();setBuscaLimpa();};
+      btn.style.cssText='background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer;padding:0 4px;flex-shrink:0;line-height:1';
+      btn.textContent='×';
+      inp.parentElement.appendChild(btn);
+    } else if(!v&&btn){
+      btn.remove();
+    }
   }
 };
 
